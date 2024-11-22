@@ -1,0 +1,53 @@
+from Bio import PDB
+from Bio.PDB.PDBList import PDBList
+import argparse
+
+parser = argparse.ArgumentParser(
+                    prog='Coarse-Grained-Model',
+                    description='The program can change model from .pdb file to coarse grained model. Call a program with pdb id of protein as a first argument.',
+                    epilog='Program save result as a pdb file.')
+parser.add_argument('pdb_id', help='input, pdb id of protein')
+parser.add_argument('--output', '-o', default = 'result.pdb', help='output, name of .pdb file')
+args = parser.parse_args()
+
+rna_name = args.pdb_id
+rna_name = rna_name.lower()
+
+pdbl = PDBList()
+fetch_pdb = pdbl.retrieve_pdb_file(rna_name, file_format='pdb')
+fetch_pdb
+pdb_parser = PDB.PDBParser()
+structure = pdb_parser.get_structure(rna_name, "./"+rna_name[1:3]+"/pdb"+rna_name+".ent")
+print("Loading structure from " + "/"+rna_name[1:3]+"/pdb"+rna_name+".ent")
+
+atoms_in_purines = ['N9', 'C2', 'C6']
+atoms_in_pyrimidines = ['N1', 'C2', 'C4']
+atoms_in_backbones = ['C4\'', 'P']
+
+newstructure = PDB.Structure.Structure(rna_name+"-g")
+for model in structure:
+  newmodel = PDB.Model.Model(model.get_id())
+  newstructure.add(newmodel)
+  for chain in model:
+    newchain = PDB.Chain.Chain(chain.get_id())
+    newmodel.add(newchain)
+    for res in chain:
+      newres = PDB.Residue.Residue(res.get_id(), res.get_resname(), res.get_segid())
+      newchain.add(newres)
+      if res.get_resname() == 'A' or res.get_resname() == 'G':
+        for atom in res.get_atoms():
+          if atom.get_name() in atoms_in_purines or atom.get_name() in atoms_in_backbones:
+            newres.add(atom)
+            #print(f"Nazwa reszty: {res.get_resname()} | Nazwa atomu: {atom.get_name()} | Koordynaty atomu: {atom.get_coord()}")
+      elif res.get_resname() == 'U' or res.get_resname() == 'C':
+        for atom in res.get_atoms():
+          if atom.get_name() in atoms_in_pyrimidines or atom.get_name() in atoms_in_backbones:
+            newres.add(atom)
+            #print(f"Nazwa reszty: {res.get_resname()} | Nazwa atomu: {atom.get_name()} | Koordynaty atomu: {atom.get_coord()}")
+
+
+io = PDB.PDBIO()
+io.set_structure(newstructure)
+io.save(args.output)
+
+print("\nThe result has been saved to the "+args.output+" file.")
